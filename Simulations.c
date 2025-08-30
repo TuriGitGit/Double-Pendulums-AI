@@ -6,14 +6,14 @@
 //  export OMP_NUM_THREADS={threads}
 // note: you can effectively disable multi-threading with export OMP_NUM_THREADS=1, otherwise allocate as many threads as you wish
 //
-//  gcc -O3 -march=native -ffast-math -fno-unsafe-math-optimizations -funroll-loops -fno-trapping-math -fno-signaling-nans -fopenmp doublepends.c -lm -o double_pendulum
+//  gcc -O3 -march=native -ffast-math -fno-unsafe-math-optimizations -funroll-loops -fno-trapping-math -fno-signaling-nans -fopenmp doublepends.c -lm -o simulations
 // WARNING SOME FLAGS USED '-fno-trapping-math' '-fno-signaling-nans' CAN CAUSE MATH ERRORS LIKE DIV BY 0 TO GO UNCHECKED
 // ONLY USE THEM AFTER TESTING WITHOUT THEM TO CONFIRM THE CODE IS SAFE
 // note: '-ffast-math' can cause rounding errors and reduced accuracy in effort to be fast
 // using '-fno-unsafe-math-optimizations' is recommended to properly avoid this
 
 // Run:
-// ./double_pendulum
+// ./simulations
 
 // Output: "Simulated {} double pendulums in {} seconds"
 
@@ -39,7 +39,7 @@ const int NSTEPS = 850; // how many RK4 steps per simulation, more steps = bette
 
 int SEED = 1; // what base seed to use. note: for a truly deterministic CSV file to be created you must 'export OMP_NUM_THREADS=1' or use a different buffer method.
 // for ease in creating chunked simulations the SEED can be input as an arg like so:
-// for seed in {1..5}; do ./double_pendulum $seed; done
+// for seed in {1..5}; do ./simulations $seed; done
 // this is useful if you want to train on more data then can fit in your RAM and you dont want to deal with pythons slow chunking shenanigans
 
 
