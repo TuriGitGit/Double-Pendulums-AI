@@ -10,19 +10,19 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(device)
 
 # sometime ill have to make it more useable with chunks
-data = np.load("chunk200m1.npy").astype(np.float32)
+data = np.load("chunk500m1.npy").astype(np.float32)
 
-state_mean = data[:, :6].mean(axis=0, dtype=np.float32)
-state_std = data[:, :6].std(axis=0, dtype=np.float32)
-data[:, :6] = (data[:, :6] - state_mean) / state_std
+state_mean = data[:, :7].mean(axis=0, dtype=np.float32)
+state_std = data[:, :7].std(axis=0, dtype=np.float32)
+data[:, :7] = (data[:, :7] - state_mean) / state_std
 
-target_mean = data[:, 6:].mean(axis=0, dtype=np.float32)
-target_std = data[:, 6:].std(axis=0, dtype=np.float32)
-data[:, 6:] = (data[:, 6:] - target_mean) / target_std
+target_mean = data[:, 7:].mean(axis=0, dtype=np.float32)
+target_std = data[:, 7:].std(axis=0, dtype=np.float32)
+data[:, 7:] = (data[:, 7:] - target_mean) / target_std
 
 class Predictor(nn.Module):
-    def __init__(self, input_dim=6, output_dim=2,
-                 hidden_dims=[350, 350, 350, 350, 350, 350, 350, 350], # this seems just way to big BUT after trying many networks of many widths and depth it appears to be the most optimal. best guess is chaotic systems really benifit from skipped conns and depth allows for this since the entire point of chaos is sensitivity to early input.
+    def __init__(self, input_dim=7, output_dim=2,
+                 hidden_dims=[350, 350, 350, 350, 350, 350, 350, 350], # now that time is added increasing the width to 380 or 400 may be better.
                  skip_connections=[(0,2),(0,3),(0,4),(0,5),(0,6),(0,7),(0,8)],
                  norm = "None", #in theory Bnorm should be optimal but in my sweeps it always performed worse, and Lnorm took more than 5x as long to converge
                  ):
@@ -80,11 +80,11 @@ class Predictor(nn.Module):
 
 
 model = Predictor().to(device)
-optimizer = optim.Adam(model.parameters(), lr=0.0015)
+optimizer = optim.Adam(model.parameters(), lr=0.0012)
 criterion = nn.MSELoss()
 
 batch_size = 16_000
-num_epochs = 15
+num_epochs = 12
 
 dataset_size = len(data)
 dataset = torch.from_numpy(data)
@@ -109,8 +109,8 @@ for epoch in range(num_epochs):
         end = min(start + batch_size, dataset_size)
         idx = indices[start:end]
         batch = dataset[idx]
-        states = batch[:, :6].to(device)
-        targets = batch[:, 6:].to(device)
+        states = batch[:, :7].to(device)
+        targets = batch[:, 7:].to(device)
 
         optimizer.zero_grad()
         preds = model(states)
@@ -129,4 +129,4 @@ torch.save(model.state_dict(), PATH)
 
 """for states_targets in loader:
         states_targets = states_targets.to(device, non_blocking=True)
-        states, targets = states_targets[:, :6], states_targets[:, 6:]""" # python data shenanigans i mentioned, will remove once i verify they will be of no help
+        states, targets = states_targets[:, :7], states_targets[:, 7:]""" # python data shenanigans i mentioned, will remove once i verify they will be of no help
