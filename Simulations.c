@@ -45,7 +45,7 @@ int SEED = 1; // what base seed to use. note: for a truly deterministic CSV file
 
 
 const double DT = 1.0 / STEPS; 
-const double HALFDT = DT / 2;
+const double HALFDT = DT / 2.0;
 const double SIXTHDT = DT / 6.0;
 
 const double G = 9.8; // plan to make these variable, but i will need a larger network and much more training time and data. so it may have to wait till i get a better cpu + gpu
@@ -119,11 +119,7 @@ static inline void RK4Step(double *restrict s, double l1, double l2) {
     s[1] += SIXTHDT * (k1[1] + 2.0*k2[1] + 2.0*k3[1] + k4[1]);
     s[2] += SIXTHDT * (k1[2] + 2.0*k2[2] + 2.0*k3[2] + k4[2]);
     s[3] += SIXTHDT * (k1[3] + 2.0*k2[3] + 2.0*k3[3] + k4[3]);
-
-    //s[0] = clampAngle(s[0]); clamping every step could potentially help in cases where the pendulum loops around hundreds of times, but this isnt realistically a concern
-    //s[2] = clampAngle(s[2]); so instead move clamp outside just so that the NN's input is nicer.
 }
-
 
 static inline unsigned long long splitMix64(unsigned long long *x) {
     unsigned long long z = (*x += 0x9E3779B97F4A7C15ULL);
@@ -136,7 +132,6 @@ static inline double randu01(unsigned long long *state) {
     const unsigned long long r = splitMix64(state);
     return (r >> 11) * (1.0/9007199254740992.0);
 }
-
 
 static inline void runSim(unsigned long long *rng_state,
                            double *out_sin_theta1, double *out_cos_theta1,
@@ -166,9 +161,8 @@ static inline void runSim(unsigned long long *rng_state,
     s[0] = clampAngle(s[0]);
     s[2] = clampAngle(s[2]);
 
-    double sin_s0, cos_s0;
+    double sin_s0, cos_s0, sin_s2, cos_s2;
     sincos(s[0], &sin_s0, &cos_s0);
-    double sin_s2, cos_s2;
     sincos(s[2], &sin_s2, &cos_s2);
     const double x1_end = l1 * sin_s0;
     const double y1_end = -l1 * cos_s0;
@@ -214,7 +208,7 @@ int main(int argc, char** argv) {
     tid = omp_get_thread_num();
 #endif
 
-    // 1.5 GB buffer per thread. make it larger if your write speed is slow and your RAM can handle it, smaller if your RAM cannot handle it
+    // 1.5 GB buffer per thread. make it larger if your disc write speed is slow and your RAM can handle it, smaller if your RAM cannot handle it
     const size_t buffer_size = 1.5 * 1024 * 1024 * 1024;
     const size_t buffer_buf = buffer_size - 512;
 
@@ -233,7 +227,6 @@ int main(int argc, char** argv) {
         double sin_th1, cos_th1, sin_th2, cos_th2, l1, l2, t, x2e, y2e;
         runSim(&sim_seed, &sin_th1, &cos_th1, &sin_th2, &cos_th2, &l1, &l2, &t, &x2e, &y2e);
 
-        // fppend to buffer
         int written = snprintf(buffer + offset, buffer_size - offset,
                                "%.5f,%.5f,%.5f,%.5f,%.2f,%.2f,%.1f,%.5f,%.5f\n",
                                sin_th1, cos_th1, sin_th2, cos_th2, l1, l2, t, x2e, y2e);
