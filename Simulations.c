@@ -17,7 +17,7 @@
 
 // Output: "Simulated {} double pendulums in {} seconds"
 
-#define _GNU_SOURCE // currently means it only works on linux systems, later ill make it portable and include the slower but windows and mac friendly functions
+#define _GNU_SOURCE // ignored if not using linux, allows the use of GNU's optimised sincos() function with math.h
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -33,10 +33,19 @@
 #include <omp.h>
 #endif
 
+#if !defined(__GNU_LIBRARY__) // slower but universal sincos function that works on windows and mac. this is about 20-30% slower... fuck microsoft and apple.
+static inline void portable_sincos(double x, double *s, double *c) {
+    *s = sin(x);
+    *c = cos(x);
+}
+#define sincos portable_sincos
+#endif
+
+
 // changeable variables
 const long int N = 500*1000*1000; // how many simulations to run
 
-const int STEPS = 300; // how many RK4 steps per simulation, more steps = better accuracy. 300 accumulates an avg of 0.000001 meters of error.
+const int STEPS = 300; // how many RK4 steps per second of simulation, more steps = better accuracy. 300 accumulates an avg of 0.000001 meters of error.
 
 int SEED = 1; // what base seed to use. note: for a truly deterministic CSV file to be created you must 'export OMP_NUM_THREADS=1' or use a different buffer method.
 // for ease in creating chunked simulations the SEED can be input as an arg like so:
