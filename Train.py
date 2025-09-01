@@ -12,9 +12,9 @@ print(device)
 # sometime ill have to make it more useable with chunks
 data = np.load("chunk500m1.npy").astype(np.float32)
 
-state_mean = data[:, :7].mean(axis=0, dtype=np.float32)
-state_std = data[:, :7].std(axis=0, dtype=np.float32)
-data[:, :7] = (data[:, :7] - state_mean) / state_std
+input_mean = data[:, :7].mean(axis=0, dtype=np.float32)
+input_std = data[:, :7].std(axis=0, dtype=np.float32)
+data[:, :7] = (data[:, :7] - input_mean) / input_std
 
 target_mean = data[:, 7:].mean(axis=0, dtype=np.float32)
 target_std = data[:, 7:].std(axis=0, dtype=np.float32)
@@ -22,18 +22,21 @@ data[:, 7:] = (data[:, 7:] - target_mean) / target_std
 
 class Predictor(nn.Module):
     def __init__(self, input_dim=7, output_dim=2,
-                 hidden_dims=[350, 350, 350, 350, 350, 350, 350, 350], # now that time is added increasing the width to 380 or 400 may be better.
+                 hidden_dims=[350, 350, 350, 350, 350, 350, 350, 350],
                  skip_connections=[(0,2),(0,3),(0,4),(0,5),(0,6),(0,7),(0,8)],
-                 norm = "None", #in theory Bnorm should be optimal but in my sweeps it always performed worse, and Lnorm took more than 5x as long to converge
+                 norm = "None", # in theory Bnorm should be optimal but in my sweeps it always performed worse, and Lnorm took more than 5x as long to converge
                  ):
         super().__init__()
-        if skip_connections is None:
-            skip_connections = []
-
         self.hidden_dims = hidden_dims
         self.skip_connections = skip_connections
         self.norm = norm
-        # Track layer input sizes
+
+        self.film_generators = nn.ModuleList([nn.Linear(1, 2 * hid) for hid in hidden_dims])
+        for fg, hid in zip(self.film_generators, hidden_dims):
+            nn.init.ones_(fg.weight[:, :hid])
+            nn.init.zeros_(fg.weight[:, hid:])
+            nn.init.zeros_(fg.bias)
+
         layer_input_dims = [input_dim]
         for hid in hidden_dims:
             layer_input_dims.append(hid)
@@ -44,29 +47,28 @@ class Predictor(nn.Module):
             extra_dim = sum(layer_input_dims[src] for src in skip_to)
             in_dim = layer_input_dims[i] + extra_dim
 
-            if self.norm == "Layer":
-                norm = nn.LayerNorm(hid_dim)
-            elif self.norm == "Batch":
-                norm = nn.BatchNorm1d(hid_dim)
+            if self.norm == "Layer": norm = nn.LayerNorm(hid_dim)
+            elif self.norm == "Batch": norm = nn.BatchNorm1d(hid_dim)
             else: norm = nn.Identity() # effectively 'None'. but since you cant pass 'None' pytorch only uses the first activation function called and ignores any others following.
 
             linear = nn.Linear(in_dim, hid_dim)
-            nn.init.normal_(linear.weight, mean=0.0, std=0.04),
-            nn.init.zeros_(linear.bias),
+            nn.init.normal_(linear.weight, mean=0.0, std=0.05)
+            nn.init.zeros_(linear.bias)
 
             layer = nn.Sequential(
                 linear,
-                nn.GELU(), # GELU outperforms all activation functions by a huge margin
-                norm #
+                nn.GELU(),
+                norm
             )
             self.layers.append(layer)
 
         linear = nn.Linear(hidden_dims[-1], output_dim)
-        nn.init.normal_(linear.weight, mean=0.0, std=0.015),
-        nn.init.zeros_(linear.bias),
+        nn.init.normal_(linear.weight, mean=0.0, std=0.015)
+        nn.init.zeros_(linear.bias)
         self.output_head = linear
 
     def forward(self, x):
+        temporal_factor = x[:, -1].unsqueeze(1)
         outputs = [x]
         out = x
         for i, layer in enumerate(self.layers):
@@ -75,26 +77,28 @@ class Predictor(nn.Module):
                 concat_inputs = [outputs[src] for src in skip_to]
                 out = torch.cat([out] + concat_inputs, dim=1)
             out = layer(out)
+
+            modulation_scale = 0.05
+            gamma_beta = self.film_generators[i](temporal_factor)
+            gamma, beta = gamma_beta.chunk(2, dim=1)
+            out = (1 + modulation_scale * (gamma - 1)) * out + modulation_scale * beta
+
             outputs.append(out)
         return self.output_head(out)
 
 
 model = Predictor().to(device)
-optimizer = optim.Adam(model.parameters(), lr=0.0012)
+optimizer = torch.optim.Adam([
+    {"params": model.layers.parameters(), "lr": 0.0015}, # weight decay may be useful now, will have to sweep.
+    {"params": model.film_generators.parameters(), "lr": 0.00008}
+])
 criterion = nn.MSELoss()
 
 batch_size = 16_000
-num_epochs = 12
+num_epochs = 20
 
 dataset_size = len(data)
 dataset = torch.from_numpy(data)
-"""loader = torch.utils.data.DataLoader(
-    dataset,
-    batch_size=batch_size,
-    shuffle=True,
-    pin_memory=True,   # key!
-    num_workers=5      # optional, parallel loading
-)""" # python data shenanigans i mentioned, will remove once i verify they will be of no help
 
 loggingRate = 2 # second(s)
 
@@ -109,11 +113,11 @@ for epoch in range(num_epochs):
         end = min(start + batch_size, dataset_size)
         idx = indices[start:end]
         batch = dataset[idx]
-        states = batch[:, :7].to(device)
+        inputs = batch[:, :7].to(device)
         targets = batch[:, 7:].to(device)
 
         optimizer.zero_grad()
-        preds = model(states)
+        preds = model(inputs)
         loss = criterion(preds, targets)
         loss_item = loss.item()
 
@@ -124,9 +128,5 @@ for epoch in range(num_epochs):
         loss.backward()
         optimizer.step()
 
-PATH = "900kmodel.pth"
-torch.save(model.state_dict(), PATH) 
-
-"""for states_targets in loader:
-        states_targets = states_targets.to(device, non_blocking=True)
-        states, targets = states_targets[:, :7], states_targets[:, 7:]""" # python data shenanigans i mentioned, will remove once i verify they will be of no help
+PATH = "900k_model.pth"
+torch.save(model.state_dict(), PATH)
