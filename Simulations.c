@@ -2,18 +2,11 @@
 
 // Uses RK4 with fixed timestep.
 
-// Build (OpenMP):
-//  export OMP_NUM_THREADS={threads}
-// note: you can effectively disable multi-threading with export OMP_NUM_THREADS=1, otherwise allocate as many threads as you wish
-//
-//  gcc -O3 -march=native -ffast-math -fno-unsafe-math-optimizations -funroll-loops -fno-trapping-math -fno-signaling-nans -fopenmp Simulations.c -lm -o simulations
-// WARNING SOME FLAGS USED '-fno-trapping-math' '-fno-signaling-nans' CAN CAUSE MATH ERRORS LIKE DIV BY 0 TO GO UNCHECKED
+// WARNING: SOME FLAGS USED '-fno-trapping-math' '-fno-signaling-nans' CAN CAUSE MATH ERRORS LIKE DIV BY 0 TO GO UNCHECKED
 // ONLY USE THEM AFTER TESTING WITHOUT THEM TO CONFIRM THE CODE IS SAFE
-// note: '-ffast-math' can cause rounding errors and reduced accuracy in effort to be fast
-// using '-fno-unsafe-math-optimizations' is recommended to properly avoid this
 
-// Run:
-// ./simulations
+// '-ffast-math' can cause rounding errors and reduced accuracy in effort to be fast
+// using '-fno-unsafe-math-optimizations' is recommended to properly avoid this
 
 // Output: "Simulated {} double pendulums in {} seconds"
 
