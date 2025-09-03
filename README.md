@@ -1,5 +1,4 @@
 # Double-Pendulums
-<meta name="google-site-verification" content="QkLORX0dSxntZ8hgv4AfkN25jX6H2Tk7GqJkQXneneQ" />
 Generate a dataset of hundreds of millions of chaotic double pendulum simulations at various angles, lengths, and simulation times, then train a Neural Network to predict where the pendulums will be.
 
 
