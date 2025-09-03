@@ -1,5 +1,5 @@
 # Double-Pendulums
-Generate a dataset of hundreds of millions of chaotic double pendulum simulations at various angles, lengths, and simulation times, then train a Neural Network to predict where the pendulums will be.
+Generate a dataset of hundreds of millions of chaotic double pendulum simulations at various angles, lengths, and simulation times, then use Deep Learning with pytorch train a Neural Network to predict where the pendulums will be.
 
 
 # How-to
