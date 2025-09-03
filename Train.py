@@ -152,7 +152,7 @@ def sweep():
 def train():
     agent = Predictor().to(device)
 
-    for epoch in range(20):
+    for epoch in range(50):
         indices = np.random.permutation(dataset_size)
 
         for start in range(0, dataset_size - agent.batch_size, agent.batch_size):
