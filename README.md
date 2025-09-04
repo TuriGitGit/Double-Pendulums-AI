@@ -35,7 +35,7 @@ Then use Deep Learning with pytorch train a Neural Network to predict where the 
   - 1 `python3 -m venv ~/p1p`
   - 2 `source ~/p1p/bin/activate`
   - 3 `pip install --upgrade pip`
-  - 4 `pip install numpy wandb torch`
+  - 4 `pip install numpy wandb torch heavyball`
   - 5(only for IDE users) in your IDE of choice set the python env variable to `~/p1p/bin/python` or your own pip venv if you already have one.
   - 6 `python3 CSVtoBinary.py` or run with the IDE of your choice.
   - 7 `python3 Train.py` or run with the IDE of your choice.
@@ -49,7 +49,7 @@ Then use Deep Learning with pytorch train a Neural Network to predict where the 
   - 1 `python -m venv C:\Users\<YourUsername>\p1p` replace `<YourUsername>` with your windows username.
   - 2 `C:\Users\<YourUsername>\p1p\Scripts\Activate.ps1` replace `<YourUsername>` with your windows username.
   - 3 `python -m pip install --upgrade pip`
-  - 4 `python -m pip install numpy wandb torch`
+  - 4 `python -m pip install numpy wandb torch heavyball`
   - 5(only for IDE users) in your IDE of choice set the python env variable to `C:\Users\<YourUsername>\p1p\Scripts\python.exe` replace `<YourUsername>` with your windows username.
   - 6 `python CSVtoBinary.py` or run with the IDE of your choice.
   - 7 `python Train.py` or run with the IDE of your choice.
