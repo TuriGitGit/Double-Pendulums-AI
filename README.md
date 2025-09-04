@@ -1,21 +1,23 @@
-# Double-Pendulums
-Generate a dataset of hundreds of millions of chaotic double pendulum simulations at various angles, lengths, and simulation times, then use Deep Learning with pytorch train a Neural Network to predict where the pendulums will be.
+# Double-Pendulums-AI
+Generate a dataset of hundreds of millions of chaotic double pendulum simulations at various angles, lengths, and simulation times.
+Then use Deep Learning with pytorch train a Neural Network to predict where the pendulums will be.
 
 
 # How-to
 
-## 1 Run Simulations
+## 1. Run Simulations
+![WARNING](https://img.shields.io/badge/WARNING:-red) I highly suggest reading through [Simulations.c](Simulations.c) to make sure variables like `STEPS`, `SIMS`, and `buffer_size` are tuned to your computer's hardware capabilities
 
   ### Linux
-  Open Double-Pendulums in a single Terminal
+  Open Double-Pendulums-AI in a single Terminal
   - 1 `export OMP_NUM_THREADS={threads}`
   - 2 `gcc -O3 -march=native -ffast-math -fno-unsafe-math-optimizations -funroll-loops -fno-trapping-math -fno-signaling-nans -fopenmp Simulations.c -lm -o simulations`
   - 3 `./simulations`
   
   ### Windows
-  *note: I have not officialy tested this so make an issue if it does not work. I will remove this once i have tested it*
+  ![NOTE](https://img.shields.io/badge/NOTE:-orange) *I have not officially tested this so make an issue if it does not work. I will remove this once i have tested it*
   
-  Open Double-Pendulums in a single Powershell / Windows Terminal **DO NOT USE COMMAND PROMPT**
+  Open Double-Pendulums-AI in a single Powershell / Windows Terminal **DO NOT USE COMMAND PROMPT**
   - install gcc if it is not already installed: https://www.google.com/search?q=how+to+install+gcc+on+windows you can check if it is installed with `gcc --version`
   - 1 compile with `gcc -O3 -march=native -ffast-math -fno-unsafe-math-optimizations -funroll-loops -fno-trapping-math -fno-signaling-nans -fopenmp Simulations.c -lm -o simulations`
   - 2 set threads to use with `$env:OMP_NUM_THREADS=<threads>` replace `<threads>` with your desired thread count.
@@ -23,10 +25,9 @@ Generate a dataset of hundreds of millions of chaotic double pendulum simulation
   
   
   ### MacOS support will come later bc apple sucks >:[
-  *note: I do not own any apple devices nor plan to, so mac support may take a while*
+  ![NOTE](https://img.shields.io/badge/NOTE:-orange) *I do not own any apple devices nor plan to, so mac support may take a while*
 
-
-## 2 Run Training
+## 2. Run Training
 
   ### Linux
   Open a single terminal
@@ -40,7 +41,7 @@ Generate a dataset of hundreds of millions of chaotic double pendulum simulation
   - 7 `python3 Train.py` or run with the IDE of your choice.
   
   ### Windows
-  *note: I have not officialy tested this so make an issue if it does not work. I will remove this once i have tested it*
+  ![NOTE](https://img.shields.io/badge/NOTE:-orange) *I have not officially tested this so make an issue if it does not work. I will remove this once i have tested it*
   
   Open a single powershell terminal
   If you already have a pip venv active you can skip to step 3
@@ -54,4 +55,4 @@ Generate a dataset of hundreds of millions of chaotic double pendulum simulation
   - 7 `python Train.py` or run with the IDE of your choice.
   
   ### MacOS support will come later bc apple sucks >:[
-  *note: I do not own any apple devices nor plan to, so mac support may take a while*
+  ![NOTE](https://img.shields.io/badge/NOTE:-orange) *I do not own any apple devices nor plan to, so mac support may take a while*
