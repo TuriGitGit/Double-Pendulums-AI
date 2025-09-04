@@ -1,11 +1,14 @@
-import numpy as np
+import time
 from collections import deque
+
+import numpy as np
 
 import torch
 import torch.nn as nn
-import torch.optim as optim
 import torch.nn.utils as utils
 import torch.nn.init as init
+
+from heavyball import ForeachMuon
 
 import wandb
 
@@ -13,6 +16,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(device)
 
 data = np.load("chunk150m1.npy").astype(np.float32)
+
 
 input_mean = data[:, :7].mean(axis=0, dtype=np.float32)
 input_std = data[:, :7].std(axis=0, dtype=np.float32)
@@ -27,7 +31,7 @@ class Predictor(nn.Module):
     def __init__(self, input_dim=7, output_dim=2,
                  hidden_dims=[350, 350, 350, 350, 350, 350, 350, 350],
                  skip_connections=[(0,2),(0,3),(0,4),(0,5),(0,6),(0,7),(0,8)],
-                 lr=0.0009, clip=8.0, batch_size=2716, init_std_L=0.037, init_std_O=0.0046
+                 lr=0.0019, clip=8.0, batch_size=3750, init_std_L=0.037, init_std_O=0.0046
                  ):
         super().__init__()
         self.hidden_dims = hidden_dims
@@ -63,7 +67,7 @@ class Predictor(nn.Module):
         init.zeros_(linear.bias)
         self.output_head = linear
 
-        self.optimizer = optim.Adam(self.parameters(), lr=lr)
+        self.optimizer = ForeachMuon(self.parameters(), lr=lr)
 
     def forward(self, x):
         outputs = [x]
@@ -87,7 +91,7 @@ sweep_config = {
   },
   "parameters": {
       "lr": {
-      "distribution": "uniform",
+      "distribution": "log_uniform_values",
       "min": 0.0001,
       "max": 0.01
     },
@@ -97,9 +101,10 @@ sweep_config = {
       "max": 8.0
     },
     "batch_size": {
-      "distribution": "int_uniform",
+      "distribution": "q_uniform",
       "min": 1_000,
-      "max": 50_000
+      "max": 50_000,
+      "q": 100
     },
     "init_std_L": {
       "distribution": "uniform",
@@ -123,9 +128,11 @@ def sweep():
         agent = Predictor(
             lr=config.lr, clip=config.clip, batch_size=config.batch_size, init_std_L=config.init_std_L, init_std_O=config.init_std_O
         ).to(device)
-        recent_avg_losses = deque(maxlen=500)
 
-        for epoch in range(2):
+        recent_avg_losses = deque(maxlen=500)
+        for epoch in range(1):
+            start_time = time.time()
+            end_time = 600 # seconds
             indices = np.random.permutation(dataset_size)
 
             for start in range(0, dataset_size - agent.batch_size, agent.batch_size):
@@ -144,6 +151,10 @@ def sweep():
 
                 wandb.log({"loss": loss_item, "recent_avg_loss": recent_avg_loss})
 
+                if time.time() >= start_time + end_time:
+                    wandb.finish(exit_code=0)
+                    return
+
                 loss.backward()
                 utils.clip_grad_norm_(agent.parameters(), agent.clip)
                 agent.optimizer.step()
@@ -151,7 +162,7 @@ def sweep():
 def train():
     agent = Predictor().to(device)
 
-    for epoch in range(25):
+    for epoch in range(5):
         epoch_loss = 0.0
         indices = np.random.permutation(dataset_size)
 
@@ -181,5 +192,5 @@ def train():
 if __name__ == "__main__":
     train()
 
-    #sweep_id = wandb.sweep(sweep_config, project="DoublePends") 
+    #sweep_id = wandb.sweep(sweep_config, project="ProjectName") 
     #wandb.agent(sweep_id, sweep, count=100) # use these if you want to run a sweep
