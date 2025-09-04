@@ -36,14 +36,21 @@ static inline void portable_sincos(double x, double *s, double *c) {
 
 
 // changeable variables
-const long int N = 500*1000*1000; // how many simulations to run
 
-const int STEPS = 300; // how many RK4 steps per second of simulation, more steps = better accuracy. 300 accumulates an avg of 0.000001 meters of error.
+    // bytes of buffer per thread. make it larger if your disc write speed is slow and your RAM can handle it, smaller if your RAM cannot handle it
+    const size_t buffer_size = 1.5 * 1024 * 1024 * 1024; // note: 'buffer_size' times the env var 'OMP_NUM_THREADS' equals RAM allocated. for me this is 1.5GB * 12 = 18GB
 
-int SEED = 1; // what base seed to use. note: for a truly deterministic CSV file to be created you must 'export OMP_NUM_THREADS=1' or use a different buffer method.
-// for ease in creating chunked simulations the SEED can be input as an arg like so:
-// for seed in {1..5}; do ./simulations $seed; done
-// this is useful if you want to train on more data then can fit in your RAM and you dont want to deal with pythons slow chunking shenanigans
+    // how many simulations to run
+    const long int SIMS = 150*1000*1000;
+
+    // how many RK4 steps per second of simulation, more steps = better accuracy. 300 accumulates an avg of 0.000001 meters of error per second.
+    const int STEPS = 300;
+
+    // base seed. note: for a truly deterministic CSV file to be created you must set env var OMP_NUM_THREADS=1 or use a different buffer method.
+    int SEED = 1;
+        // for ease in creating chunked simulations the SEED can be input as an arg like so:
+            // for i in {1..5}; do ./simulations $i; done       (linux / mac)
+            // 1..5 | ForEach-Object { .\simulations.exe $_ }   (windows)
 
 
 const double DT = 1.0 / STEPS; 
@@ -91,11 +98,10 @@ static inline void derivs(const double *restrict s, double *restrict dsdt, doubl
 }
 
 static inline double clampAngle(double theta) {
-    return theta - 2.0 * M_PI * round(theta / (2.0 * M_PI));
+    return theta - 2.0 * M_PI * round(theta / (2.0 * M_PI)); // [-pi, pi]
 }
 
 static inline void RK4Step(double *restrict s, double l1, double l2) {
-    // the compiler can't be trusted to always unroll this function properly, so it is manually unrolled.
     double k1[4], k2[4], k3[4], k4[4], tmp[4];
 
     derivs(s, k1, l1, l2);
@@ -142,14 +148,14 @@ static inline void runSim(unsigned long long *rng_state,
                            double *out_t,
                            double *out_x2_end, double *out_y2_end) {
     
-    const double t = 0.2 * (1+ (int)(10 * randu01(rng_state))); // range [0.2, 2.0] step 0.2 at some point i will have to make these not stepped or atleast not stepped so harshly but then i have to deal with nsteps being a double/float instead of an int... not fun
-    const int nsteps = t / DT; // currently doing this is fine since of how t is stepped, but i will likely have to implement rounding and increase DT later.
-    const double l1 = 0.4 + 0.01 * (int)(61 * randu01(rng_state)); // range [0.4, 1.0] step 0.01
-    const double l2 = 0.4 + 0.01 * (int)(61 * randu01(rng_state)); // range [0.4, 1.0] step 0.01
-    const double theta1 = randu01(rng_state) * 2.0 * M_PI;
-    const double theta2 = randu01(rng_state) * 2.0 * M_PI;
-    const double omega1 = 0.0;
-    const double omega2 = 0.0;
+    const int nsteps = 10 + 10 * (int)(randu01(rng_state) * (2 * STEPS) / 10);  // [10, 600] step 10
+    const double l1 = 0.4 + 0.01 * (int)(61 * randu01(rng_state));              // [0.4, 1.0] step 0.01
+    const double l2 = 0.4 + 0.01 * (int)(61 * randu01(rng_state));              // [0.4, 1.0] step 0.01
+    const double theta1 = randu01(rng_state) * 2.0 * M_PI;                      // [0, 2pi)
+    const double theta2 = randu01(rng_state) * 2.0 * M_PI;                      // [0, 2pi)
+    const double omega1 = 0.0;                                                  // will make variable later
+    const double omega2 = 0.0;                                                  // will make variable later
+    const double t = (double)nsteps / STEPS;                                            // [0.033..., 2] step 0.033...
     double s[4] = {theta1, omega1, theta2, omega2};
 
     double sin_theta1, cos_theta1;
@@ -159,6 +165,10 @@ static inline void runSim(unsigned long long *rng_state,
 
     for (int i = 0; i < nsteps; ++i) {
         RK4Step(s, l1, l2);
+        if ((i+1) % STEPS == 0) {
+            s[0] = clampAngle(s[0]);
+            s[2] = clampAngle(s[2]);
+        }
     }
     s[0] = clampAngle(s[0]);
     s[2] = clampAngle(s[2]);
@@ -187,7 +197,7 @@ static inline void runSim(unsigned long long *rng_state,
 int main(int argc, char** argv) {
     if (argc >= 2) {SEED = atoi(argv[1]);}
     char filename[128];
-    snprintf(filename, sizeof(filename), "%ld simulations at %.5f using %d.csv", N, DT, SEED);
+    snprintf(filename, sizeof(filename), "%ld simulations at %.5f using %d.csv", SIMS, DT, SEED);
     
     FILE *fp = fopen(filename, "w");
     if (!fp) {
@@ -210,8 +220,6 @@ int main(int argc, char** argv) {
     tid = omp_get_thread_num();
 #endif
 
-    // 1.5 GB buffer per thread. make it larger if your disc write speed is slow and your RAM can handle it, smaller if your RAM cannot handle it
-    const size_t buffer_size = 1.5 * 1024 * 1024 * 1024;
     const size_t buffer_buf = buffer_size - 512;
 
     char *buffer = (char*)malloc(buffer_size);
@@ -224,13 +232,13 @@ int main(int argc, char** argv) {
     unsigned long long rng_state = SEED ^ (0x9E3779B97F4A7C15ULL * (unsigned long long)(tid+1));
 
 #pragma omp for schedule(static)
-    for (long i = 0; i < N; ++i) {
+    for (long i = 0; i < SIMS; ++i) {
         unsigned long long sim_seed = rng_state ^ (0xBF58476D1CE4E5B9ULL * (unsigned long long)(i+1));
         double sin_th1, cos_th1, sin_th2, cos_th2, l1, l2, t, x2e, y2e;
         runSim(&sim_seed, &sin_th1, &cos_th1, &sin_th2, &cos_th2, &l1, &l2, &t, &x2e, &y2e);
 
         int written = snprintf(buffer + offset, buffer_size - offset,
-                               "%.5f,%.5f,%.5f,%.5f,%.2f,%.2f,%.1f,%.5f,%.5f\n",
+                               "%.5f,%.5f,%.5f,%.5f,%.2f,%.2f,%.4f,%.5f,%.5f\n",
                                sin_th1, cos_th1, sin_th2, cos_th2, l1, l2, t, x2e, y2e);
 
         if (written < 0) {
@@ -263,6 +271,6 @@ int main(int argc, char** argv) {
     end_time = (double)clock() / CLOCKS_PER_SEC;
 #endif
     fclose(fp);
-    printf("Simulated %ld double pendulums in %.3f seconds.\n", N, end_time - start_time);
+    printf("Simulated %ld double pendulums in %.3f seconds.\n", SIMS, end_time - start_time);
     return 0;
 }
