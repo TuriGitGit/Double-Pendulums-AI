@@ -27,7 +27,7 @@ class Predictor(nn.Module):
     def __init__(self, input_dim=7, output_dim=2,
                  hidden_dims=[350, 350, 350, 350, 350, 350, 350, 350],
                  skip_connections=[(0,2),(0,3),(0,4),(0,5),(0,6),(0,7),(0,8)],
-                 lr=0.0012, clip=7.6, batch_size=2716, init_std_L=0.039, init_std_O=0.0046
+                 lr=0.0009, clip=8.0, batch_size=2716, init_std_L=0.037, init_std_O=0.0046
                  ):
         super().__init__()
         self.hidden_dims = hidden_dims
@@ -151,7 +151,7 @@ def sweep():
 def train():
     agent = Predictor().to(device)
 
-    for epoch in range(50):
+    for epoch in range(25):
         epoch_loss = 0.0
         indices = np.random.permutation(dataset_size)
 
