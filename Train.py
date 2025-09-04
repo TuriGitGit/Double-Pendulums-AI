@@ -12,7 +12,7 @@ import wandb
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(device)
 
-data = np.load("chunk100m1.npy").astype(np.float32)
+data = np.load("chunk150m1.npy").astype(np.float32)
 
 input_mean = data[:, :7].mean(axis=0, dtype=np.float32)
 input_std = data[:, :7].std(axis=0, dtype=np.float32)
