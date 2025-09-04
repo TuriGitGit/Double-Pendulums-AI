@@ -162,7 +162,7 @@ def sweep():
 def train():
     agent = Predictor().to(device)
 
-    for epoch in range(5):
+    for epoch in range(10):
         epoch_loss = 0.0
         indices = np.random.permutation(dataset_size)
 
@@ -184,9 +184,8 @@ def train():
 
         epoch_loss /= (i+1)
         print(f"{epoch_loss:.6f}")
-
-    PATH = f"{epoch+1}_{epoch_loss:.6f}_model.pth"
-    torch.save(agent.state_dict(), PATH)
+        PATH = f"{epoch+1}_{epoch_loss:.6f}_model.pth"
+        torch.save(agent.state_dict(), PATH)
 
 
 if __name__ == "__main__":
