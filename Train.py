@@ -54,7 +54,7 @@ class Predictor(nn.Module):
 
             layer = nn.Sequential(
                 linear,
-                nn.GELU(), # no need to sweep activation, GELU dominates.
+                nn.GELU(),
             )
             self.layers.append(layer)
 
@@ -75,7 +75,6 @@ class Predictor(nn.Module):
                 out = torch.cat([out] + concat_inputs, dim=1)
 
             out = layer(out)
-
             outputs.append(out)
         return self.output_head(out)
 
@@ -153,9 +152,10 @@ def train():
     agent = Predictor().to(device)
 
     for epoch in range(50):
+        epoch_loss = 0.0
         indices = np.random.permutation(dataset_size)
 
-        for start in range(0, dataset_size - agent.batch_size, agent.batch_size):
+        for i, start in enumerate(range(0, dataset_size - agent.batch_size, agent.batch_size)):
             end = min(start + agent.batch_size, dataset_size)
             idx = indices[start:end]
             batch = dataset[idx]
@@ -165,14 +165,16 @@ def train():
             agent.optimizer.zero_grad()
             preds = agent(inputs)
             loss = criterion(preds, targets)
+            epoch_loss += loss.item()
 
             loss.backward()
             utils.clip_grad_norm_(agent.parameters(), agent.clip)
             agent.optimizer.step()
 
-    loss_item = loss.item()
-    print(loss_item)
-    PATH = f"{epoch+1}_{loss_item:.6f}_model.pth"
+        epoch_loss /= (i+1)
+        print(f"{epoch_loss:.6f}")
+
+    PATH = f"{epoch+1}_{epoch_loss:.6f}_model.pth"
     torch.save(agent.state_dict(), PATH)
 
 
