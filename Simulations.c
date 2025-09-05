@@ -60,6 +60,8 @@ const double SIXTHDT = DT / 6.0;
 const double G = 9.8; // plan to make these variable, but i will need a larger network and much more training time and data. so it may have to wait till i get a better cpu + gpu
 const double M1 = 1.0;
 const double M2 = 1.0;
+const double M1_M2 = M1 + M2;
+const double M1_M2_G = M1_M2 * G;
 
 typedef struct {
     double m_total_g; 
@@ -161,10 +163,10 @@ static inline void runSim(unsigned long long *rng_state,
 
     // pre-precompute
     PendulumConsts consts = {
-        .m_total_g = (M1 + M2) * G,
+        .m_total_g = M1_M2_G,
         .M2_l1 = M2 * l1,
         .M2_l2 = M2 * l2,
-        .m_total_l = (M1 + M2) * l1,
+        .m_total_l = M1_M2 * l1,
         .l1 = l1,
         .l2 = l2,
         .l2_div_l1 = l2 / l1
