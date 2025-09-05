@@ -1,5 +1,9 @@
 import numpy as np
-data = np.loadtxt("150000000 simulations at 0.00333 using 1.csv", delimiter=",", skiprows=1, dtype=np.float32)
+
+try:
+    data = np.loadtxt("150000000 simulations at 0.00333 using 1.csv", delimiter=",", skiprows=1, dtype=np.float32)
+except Exception as e:
+    print("failed to load data", e)
 
 input_mean = data[:, :7].mean(axis=0, dtype=np.float32)
 input_std = data[:, :7].std(axis=0, dtype=np.float32)
