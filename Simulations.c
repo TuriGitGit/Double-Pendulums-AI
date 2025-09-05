@@ -61,28 +61,29 @@ const double G = 9.8; // plan to make these variable, but i will need a larger n
 const double M1 = 1.0;
 const double M2 = 1.0;
 
+typedef struct {
+    double m_total_g; 
+    double M2_l1;
+    double M2_l2;
+    double m_total_l;
+    double l1;
+    double l2;
+    double l2_div_l1;
+} PendulumConsts;
 
-static inline void derivs(const double *restrict s, double *restrict dsdt, double l1, double l2) {
-    const double delta = s[2] - s[0];
-    double si, c;
-    sincos(delta, &si, &c);
-    const double sin_s2 = sin(s[2]);
-    const double s1_squared = s[1] * s[1];
+static inline void derivs(const double *restrict s, double *restrict dsdt, const PendulumConsts *consts) {
     // precompute
-    const double m_total = M1 + M2;
-    const double m_total_g = m_total * G;
-    const double M2_l1 = M2 * l1;
-    const double M2_l2_s3_squared = M2 * l2 * s[3] * s[3];
-    const double m_total_1 = m_total * l1;
-    const double m_total_g_sin_s0 = m_total_g * sin(s[0]);
-    const double M2_l2_s3_squared_si = M2_l2_s3_squared * si;
-    const double s1_squared_si = s1_squared * si;
-    const double den1 = m_total_1 - M2_l1 * c * c;
-    const double den2 = (l2 / l1) * den1;
+    double si, c;
+    sincos(s[2] - s[0], &si, &c);
+    const double sin_s2 = sin(s[2]);
+    const double m_total_g_sin_s0 = consts->m_total_g * sin(s[0]);
+    const double M2_l2_s3_squared_si = consts->M2_l2 * s[3] * s[3] * si;
+    const double s1_squared_si = s[1] * s[1] * si;
+    const double den1 = consts->m_total_l - consts->M2_l1 * c * c;
 
     dsdt[0] = s[1];
     dsdt[1] = (
-        M2_l1 * s1_squared_si * c +
+        consts->M2_l1 * s1_squared_si * c +
         M2 * G * sin_s2 * c +
         M2_l2_s3_squared_si -
         m_total_g_sin_s0
@@ -92,37 +93,37 @@ static inline void derivs(const double *restrict s, double *restrict dsdt, doubl
     dsdt[3] = (
         - M2_l2_s3_squared_si * c +
         m_total_g_sin_s0 * c -
-        m_total_1 * s1_squared_si -
-        m_total_g * sin_s2
-    ) / den2;
+        consts->m_total_l * s1_squared_si -
+        consts->m_total_g * sin_s2
+    ) / (consts->l2_div_l1 * den1);
 }
 
 static inline double clampAngle(double theta) {
     return theta - 2.0 * M_PI * round(theta / (2.0 * M_PI)); // [-pi, pi]
 }
 
-static inline void RK4Step(double *restrict s, double l1, double l2) {
+static inline void RK4Step(double *restrict s, const PendulumConsts *consts) {
     double k1[4], k2[4], k3[4], k4[4], tmp[4];
 
-    derivs(s, k1, l1, l2);
+    derivs(s, k1, consts);
     tmp[0] = s[0] + HALFDT * k1[0];
     tmp[1] = s[1] + HALFDT * k1[1];
     tmp[2] = s[2] + HALFDT * k1[2];
     tmp[3] = s[3] + HALFDT * k1[3];
 
-    derivs(tmp, k2, l1, l2);
+    derivs(tmp, k2, consts);
     tmp[0] = s[0] + HALFDT * k2[0];
     tmp[1] = s[1] + HALFDT * k2[1];
     tmp[2] = s[2] + HALFDT * k2[2];
     tmp[3] = s[3] + HALFDT * k2[3];
 
-    derivs(tmp, k3, l1, l2);
+    derivs(tmp, k3, consts);
     tmp[0] = s[0] + DT * k3[0];
     tmp[1] = s[1] + DT * k3[1];
     tmp[2] = s[2] + DT * k3[2];
     tmp[3] = s[3] + DT * k3[3];
 
-    derivs(tmp, k4, l1, l2);
+    derivs(tmp, k4, consts);
     s[0] += SIXTHDT * (k1[0] + 2.0*k2[0] + 2.0*k3[0] + k4[0]);
     s[1] += SIXTHDT * (k1[1] + 2.0*k2[1] + 2.0*k3[1] + k4[1]);
     s[2] += SIXTHDT * (k1[2] + 2.0*k2[2] + 2.0*k3[2] + k4[2]);
@@ -155,8 +156,19 @@ static inline void runSim(unsigned long long *rng_state,
     const double theta2 = randu01(rng_state) * 2.0 * M_PI;                      // [0, 2pi)
     const double omega1 = 0.0;                                                  // will make variable later
     const double omega2 = 0.0;                                                  // will make variable later
-    const double t = (double)nsteps / STEPS;                                            // [0.033..., 2] step 0.033...
+    const double t = (double)nsteps / STEPS;                                    // [0.033..., 2] step 0.033...
     double s[4] = {theta1, omega1, theta2, omega2};
+
+    // pre-precompute
+    PendulumConsts consts = {
+        .m_total_g = (M1 + M2) * G,
+        .M2_l1 = M2 * l1,
+        .M2_l2 = M2 * l2,
+        .m_total_l = (M1 + M2) * l1,
+        .l1 = l1,
+        .l2 = l2,
+        .l2_div_l1 = l2 / l1
+    };
 
     double sin_theta1, cos_theta1;
     sincos(theta1, &sin_theta1, &cos_theta1);
@@ -164,7 +176,7 @@ static inline void runSim(unsigned long long *rng_state,
     sincos(theta2, &sin_theta2, &cos_theta2);
 
     for (int i = 0; i < nsteps; ++i) {
-        RK4Step(s, l1, l2);
+        RK4Step(s, &consts);
         if ((i+1) % STEPS == 0) {
             s[0] = clampAngle(s[0]);
             s[2] = clampAngle(s[2]);
@@ -231,7 +243,7 @@ int main(int argc, char** argv) {
 
     unsigned long long rng_state = SEED ^ (0x9E3779B97F4A7C15ULL * (unsigned long long)(tid+1));
 
-#pragma omp for schedule(static)
+#pragma omp for schedule(dynamic, 10)
     for (long i = 0; i < SIMS; ++i) {
         unsigned long long sim_seed = rng_state ^ (0xBF58476D1CE4E5B9ULL * (unsigned long long)(i+1));
         double sin_th1, cos_th1, sin_th2, cos_th2, l1, l2, t, x2e, y2e;
