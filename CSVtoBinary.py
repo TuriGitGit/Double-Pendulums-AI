@@ -14,4 +14,4 @@ except Exception as e:
 try:
     np.save("150m data.npy", data)
 except Exception as e:
-    print("failed to save data")
+    print("failed to save data", e)
