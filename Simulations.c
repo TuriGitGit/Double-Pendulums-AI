@@ -41,7 +41,7 @@ static inline void portable_sincos(double x, double *s, double *c) {
     const size_t buffer_size = 1.5 * 1024 * 1024 * 1024; // note: 'buffer_size' times the env var 'OMP_NUM_THREADS' equals RAM allocated. for me this is 1.5GB * 12 = 18GB
 
     // how many simulations to run
-    const long int SIMS = 350*1000*1000;
+    const long int SIMS = 350*1000*1000; // ~68.28MB per million simulations, max SIMS is suggested to be less than half your RAM size.
 
     // how many RK4 steps per second of simulation, more steps = better accuracy. 300 accumulates an avg of 0.000001 meters of error per second.
     const int STEPS = 300;
