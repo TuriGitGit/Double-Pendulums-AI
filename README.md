@@ -43,6 +43,7 @@ Then use Deep Learning with pytorch train a Neural Network to predict where the 
   - 6(only for IDE users) in your IDE of choice set the python env variable to `~/p1p/bin/python` or your own pip venv if you already have one.
   - 7 `python3 CSVtoBinary.py` or run with the IDE of your choice.
   - 8 `python3 Train.py` or run with the IDE of your choice.
+  - after your model has finished training open [Evaluate.py](Evaluate.py), choose the model of your choice from [Models/](Models/) and run with `python3 Evaluate.py`
   
   ### Windows
   ![NOTE](https://img.shields.io/badge/NOTE:-orange) *I have not officially tested this so make an issue if it does not work. I will remove this once i have tested it*
@@ -59,6 +60,7 @@ Then use Deep Learning with pytorch train a Neural Network to predict where the 
   - 5(only for IDE users) in your IDE of choice set the python env variable to `C:\Users\<YourUsername>\p1p\Scripts\python.exe` replace `<YourUsername>` with your windows username.
   - 6 `python CSVtoBinary.py` or run with the IDE of your choice.
   - 7 `python Train.py` or run with the IDE of your choice.
+  - after your model has finished training open [Evaluate.py](Evaluate.py), choose the model of your choice from [Models/](Models/) and run with `python Evaluate.py`
   
   ### MacOS support will come later bc apple sucks >:[
   ![NOTE](https://img.shields.io/badge/NOTE:-orange) *I do not own any apple devices nor plan to, so mac support may take a while*
