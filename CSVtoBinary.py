@@ -15,6 +15,8 @@ try:
 except Exception as e:
     print("failed to save stats.npz", e)
 
+del input_mean, input_std, target_mean, target_std
+
 try:
     np.save("150m data.npy", data)
 except Exception as e:
