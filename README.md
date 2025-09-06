@@ -1,6 +1,6 @@
 # Double-Pendulums-AI
 Generate a dataset of hundreds of millions of chaotic double pendulum simulations at various angles, lengths, and simulation times.
-Then use Deep Learning with pytorch train a Neural Network to predict where the pendulums will be.
+Then use Deep Learning with pytorch train a Deep Mulit-Layer Perceptron Neural Network to predict where the pendulums will be.
 
 
 # How-to
