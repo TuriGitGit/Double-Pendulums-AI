@@ -1,4 +1,6 @@
 import time
+import os
+import json
 from collections import deque
 
 import numpy as np
@@ -14,9 +16,9 @@ import wandb
 
 class Predictor(nn.Module):
     def __init__(self, input_dim=7, output_dim=2,
-                 hidden_dims=[450, 450, 450, 450, 450, 450, 450, 450],
+                 hidden_dims=[400]*8,
                  skip_connections=[(0,2),(0,3),(0,4),(0,5),(0,6),(0,7),(0,8)],
-                 lr=0.0012, clip=8.0, batch_size=3750, init_std_L=0.037, init_std_O=0.0046
+                 lr=0.00115, clip=8.0, batch_size=3750, init_std_L=0.037, init_std_O=0.0046
                  ):
         super().__init__()
         self.hidden_dims = hidden_dims
@@ -143,8 +145,9 @@ def sweep():
 
 def train():
     agent = Predictor().to(device)
+    #agent.load_state_dict(torch.load(MODEL, map_location=device)) TODO: allow easy chunked training
 
-    for epoch in range(10):
+    for epoch in range(2):
         epoch_loss = 0.0
         indices = np.random.permutation(dataset_size)
 
@@ -166,27 +169,44 @@ def train():
 
         epoch_loss /= (i+1)
         print(f"{epoch_loss:.6f}")
-        PATH = f"{epoch+1}_{epoch_loss:.6f}_[450]*8_model.pth"
-        torch.save(agent.state_dict(), PATH)
 
+        os.makedirs("Models", exist_ok=True)
+
+        torch.save(agent.state_dict(), os.path.join("Models",
+            f"[{agent.hidden_dims[0]}]*{len(agent.hidden_dims)} size NN trained on {FILE_NAME} data for {epoch+1} epochs.pth")
+        )
 
 if __name__ == "__main__":
+    with open("config.json") as f:
+        cfg = json.load(f)
+
+    SIMS = cfg["SIMS"]
+    STEPS = cfg["STEPS"]
+    SEED = cfg["SEED"]
+
+    FILE_NAME = f"{SIMS} simulations at {STEPS} per second using {SEED} seed"
+
+    STATS = f"{FILE_NAME} stats.npz"
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(device)
 
-    data = np.load("350m data.npy").astype(np.float32)
+    data = np.load(f"{FILE_NAME} data.npy")
+    stats = np.load(STATS)
+    input_mean, input_std = stats['input_mean'], stats['input_std']
+    target_mean, target_std = stats['target_mean'], stats['target_std']
+    del stats
 
+    np.subtract(data[:, :7], input_mean, out=data[:, :7])
+    np.divide(data[:, :7], input_std, out=data[:, :7])
+    # slower, but inplace uses less memory, since this part of the code uses the most memory and takes up negligeable time, its worth it.
+    np.subtract(data[:, 7:], target_mean, out=data[:, 7:])
+    np.divide(data[:, 7:], target_std, out=data[:, 7:])
 
-    input_mean = data[:, :7].mean(axis=0, dtype=np.float32)
-    input_std = data[:, :7].std(axis=0, dtype=np.float32)
-    data[:, :7] = (data[:, :7] - input_mean) / input_std
-
-    target_mean = data[:, 7:].mean(axis=0, dtype=np.float32)
-    target_std = data[:, 7:].std(axis=0, dtype=np.float32)
-    data[:, 7:] = (data[:, 7:] - target_mean) / target_std
 
     dataset_size = len(data)
     dataset = torch.from_numpy(data)
+
     criterion = nn.MSELoss()
 
     train()
