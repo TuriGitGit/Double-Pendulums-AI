@@ -1,5 +1,7 @@
 import math
 import time
+import os
+import json
 
 import tkinter as tk
 import torch
@@ -7,16 +9,28 @@ import numpy as np
 
 from Train import Predictor
 
+with open("config.json") as f:
+    cfg = json.load(f)
+
+SIMS = cfg["SIMS"]
+STEPS = cfg["STEPS"]
+SEED = cfg["SEED"]
+
+FILE_NAME = f"{SIMS} simulations at {STEPS} per second using {SEED} seed"
+STATS = f"{FILE_NAME} stats.npz"
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(device)
 
-MODEL = '30_0.002327_[450]*8_model.pth'
-STATS = '150m stats.npz'
+try:
+    MODEL = os.path.join("Models", f"[400]*8 size NN trained on {FILE_NAME} data for 2 epochs.pth") # TODO: expose to tkinter
+except Exception as e:
+    print("Failed to find Model", e)
+
 
 FPS = 120
 MSPF = 1000 // FPS
 
-STEPS = 300
 DT = 1.0 / STEPS
 HALFDT = DT / 2.0
 SIXTHDT = DT / 6.0
@@ -99,7 +113,6 @@ class Visualizer:
         self.y_true = 0.0
         self.x_final = 0.0
         self.y_final = 0.0
-        self.resetVars()
 
         stats = np.load(STATS)
         self.input_mean, self.input_std = stats['input_mean'], stats['input_std']
@@ -107,10 +120,11 @@ class Visualizer:
         del stats
 
 
-        self.model = Predictor()
+        self.model = Predictor().to(device)
         self.model.load_state_dict(torch.load(MODEL, map_location=device))
         self.model.eval()
 
+        self.resetVars()
         self.updatePred()
 
         self.canvas.bind("<Configure>", self.resize)
@@ -124,7 +138,7 @@ class Visualizer:
 
         self.center_x = width / 2
         self.center_y = height / 2
-        self.canvas.delete('del2')
+        self.canvas.delete('del2', 'del3')
         self.canvas.create_oval(self.center_x - 5,  self.center_y - 5, self.center_x + 5,  self.center_y + 5, fill='white', tags='del2')
 
         margin = 20
@@ -190,24 +204,31 @@ class Visualizer:
                 print("Invalid var", e)
 
     def updatePred(self):
+        self.canvas.delete('del')
         try:
-            theta1 = self.theta1_var.get()
-            theta2 = self.theta2_var.get()
-            l1 = self.l1_var.get()
-            l2 = self.l2_var.get()
-            nsteps = self.nsteps_var.get()
+            theta1 = torch.tensor(self.theta1_var.get(), device=device)
+            theta2 = torch.tensor(self.theta2_var.get(), device=device)
+            l1 = torch.tensor(self.l1_var.get(), device=device)
+            l2 = torch.tensor(self.l2_var.get(), device=device)
+            nsteps = torch.tensor(self.nsteps_var.get(), device=device)
             t = nsteps / STEPS
-            sin1 = math.sin(theta1)
-            cos1 = math.cos(theta1)
-            sin2 = math.sin(theta2)
-            cos2 = math.cos(theta2)
-            inputs = np.array([sin1, cos1, sin2, cos2, l1, l2, t], dtype=np.float32)
-            norm_inputs = (inputs - self.input_mean) / self.input_std
-            tensor = torch.from_numpy(norm_inputs).unsqueeze(0).to(device)
+
+            inputs = torch.stack([
+                torch.sin(theta1),
+                torch.cos(theta1),
+                torch.sin(theta2),
+                torch.cos(theta2),
+                l1, l2, t
+            ]).unsqueeze(0).float()
+            input_mean_t = torch.tensor(self.input_mean, device=device, dtype=torch.float32)
+            input_std_t = torch.tensor(self.input_std, device=device, dtype=torch.float32)
+            norm_inputs = (inputs - input_mean_t) / input_std_t
+
             with torch.no_grad():
-                pred_norm = self.model(tensor)
-            pred = pred_norm.squeeze(0).numpy() * self.target_std + self.target_mean
-            self.x_pred, self.y_pred = pred
+                pred_norm = self.model(norm_inputs)
+
+            pred = pred_norm.squeeze(0).cpu() * torch.tensor(self.target_std) + torch.tensor(self.target_mean)
+            self.x_pred, self.y_pred = pred.tolist()
         except Exception as e:
             print("Skipped prediction", e)
             
@@ -313,7 +334,6 @@ class Visualizer:
             if advanced < steps_per_frame and self.current_step >= self.nsteps:
                 self.s[0] = self.clampAngle(self.s[0])
                 self.s[2] = self.clampAngle(self.s[2])
-                print(x2)
                 self.x_final = x2
                 self.y_final = y2
                 if self.is_loop:
@@ -347,11 +367,11 @@ class Visualizer:
 
         x_final = ox + self.x_final * self.scale
         y_final = oy - self.y_final * self.scale
-        self.canvas.create_oval(x_final - 10, y_final - 10, x_final + 10, y_final + 10, outline='green', width=4, tags='del')
+        self.canvas.create_oval(x_final - 10, y_final - 10, x_final + 10, y_final + 10, outline='green', width=4, tags='del3')
 
         x_pred_s = ox + self.x_pred * self.scale
         y_pred_s = oy - self.y_pred * self.scale
-        self.canvas.create_oval(x_pred_s - 10, y_pred_s - 10, x_pred_s + 10, y_pred_s + 10, outline='red', width=2, tags='del')
+        self.canvas.create_oval(x_pred_s - 10, y_pred_s - 10, x_pred_s + 10, y_pred_s + 10, outline='red', width=2, tags='del3')
 
         self.canvas.create_text(10, self.canvas.winfo_height() - 30, anchor='sw', text=f"MSE: {self.mse:.6f}", font=("Arial", 12), fill='white', tags='del')
 
