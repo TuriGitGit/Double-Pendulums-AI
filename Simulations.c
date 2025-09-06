@@ -245,7 +245,7 @@ int main(int argc, char** argv) {
 
     unsigned long long rng_state = SEED ^ (0x9E3779B97F4A7C15ULL * (unsigned long long)(tid+1));
 
-#pragma omp for schedule(dynamic, 10)
+#pragma omp for schedule(dynamic, 50)
     for (long i = 0; i < SIMS; ++i) {
         unsigned long long sim_seed = rng_state ^ (0xBF58476D1CE4E5B9ULL * (unsigned long long)(i+1));
         double sin_th1, cos_th1, sin_th2, cos_th2, l1, l2, t, x2e, y2e;
