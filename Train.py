@@ -12,26 +12,11 @@ from heavyball import ForeachMuon
 
 import wandb
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print(device)
-
-data = np.load("chunk150m1.npy").astype(np.float32)
-
-
-input_mean = data[:, :7].mean(axis=0, dtype=np.float32)
-input_std = data[:, :7].std(axis=0, dtype=np.float32)
-data[:, :7] = (data[:, :7] - input_mean) / input_std
-
-target_mean = data[:, 7:].mean(axis=0, dtype=np.float32)
-target_std = data[:, 7:].std(axis=0, dtype=np.float32)
-data[:, 7:] = (data[:, 7:] - target_mean) / target_std
-
-
 class Predictor(nn.Module):
     def __init__(self, input_dim=7, output_dim=2,
-                 hidden_dims=[350, 350, 350, 350, 350, 350, 350, 350],
+                 hidden_dims=[450, 450, 450, 450, 450, 450, 450, 450],
                  skip_connections=[(0,2),(0,3),(0,4),(0,5),(0,6),(0,7),(0,8)],
-                 lr=0.0019, clip=8.0, batch_size=3750, init_std_L=0.037, init_std_O=0.0046
+                 lr=0.0012, clip=8.0, batch_size=3750, init_std_L=0.037, init_std_O=0.0046
                  ):
         super().__init__()
         self.hidden_dims = hidden_dims
@@ -119,9 +104,6 @@ sweep_config = {
   }
 }
 
-dataset_size = len(data)
-dataset = torch.from_numpy(data)
-criterion = nn.MSELoss()
 def sweep():
     with wandb.init() as run:
         config = wandb.config
@@ -162,7 +144,7 @@ def sweep():
 def train():
     agent = Predictor().to(device)
 
-    for epoch in range(10):
+    for epoch in range(1000):
         epoch_loss = 0.0
         indices = np.random.permutation(dataset_size)
 
@@ -184,11 +166,29 @@ def train():
 
         epoch_loss /= (i+1)
         print(f"{epoch_loss:.6f}")
-        PATH = f"{epoch+1}_{epoch_loss:.6f}_model.pth"
+        PATH = f"{epoch+1}_{epoch_loss:.6f}_[450]*8_model.pth"
         torch.save(agent.state_dict(), PATH)
 
 
 if __name__ == "__main__":
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(device)
+
+    data = np.load("350m data.npy").astype(np.float32)
+
+
+    input_mean = data[:, :7].mean(axis=0, dtype=np.float32)
+    input_std = data[:, :7].std(axis=0, dtype=np.float32)
+    data[:, :7] = (data[:, :7] - input_mean) / input_std
+
+    target_mean = data[:, 7:].mean(axis=0, dtype=np.float32)
+    target_std = data[:, 7:].std(axis=0, dtype=np.float32)
+    data[:, 7:] = (data[:, 7:] - target_mean) / target_std
+
+    dataset_size = len(data)
+    dataset = torch.from_numpy(data)
+    criterion = nn.MSELoss()
+
     train()
 
     #sweep_id = wandb.sweep(sweep_config, project="ProjectName") 
