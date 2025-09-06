@@ -41,7 +41,7 @@ static inline void portable_sincos(double x, double *s, double *c) {
     const size_t buffer_size = 1.5 * 1024 * 1024 * 1024; // note: 'buffer_size' times the env var 'OMP_NUM_THREADS' equals RAM allocated. for me this is 1.5GB * 12 = 18GB
 
     // how many simulations to run
-    const long int SIMS = 150*1000*1000;
+    const long int SIMS = 350*1000*1000;
 
     // how many RK4 steps per second of simulation, more steps = better accuracy. 300 accumulates an avg of 0.000001 meters of error per second.
     const int STEPS = 300;
@@ -151,7 +151,7 @@ static inline void runSim(unsigned long long *rng_state,
                            double *out_t,
                            double *out_x2_end, double *out_y2_end) {
     
-    const int nsteps = 10 + 10 * (int)(randu01(rng_state) * (2 * STEPS) / 10);  // [10, 600] step 10
+    const int nsteps = 10 + 10 * (int)(randu01(rng_state) * (4 * STEPS) / 10);  // [10, 1200] step 10
     const double l1 = 0.4 + 0.01 * (int)(61 * randu01(rng_state));              // [0.4, 1.0] step 0.01
     const double l2 = 0.4 + 0.01 * (int)(61 * randu01(rng_state));              // [0.4, 1.0] step 0.01
     const double theta1 = randu01(rng_state) * 2.0 * M_PI;                      // [0, 2pi)
