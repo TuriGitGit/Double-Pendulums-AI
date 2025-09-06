@@ -41,7 +41,7 @@ static inline void portable_sincos(double x, double *s, double *c) {
     const size_t buffer_size = 1.5 * 1024 * 1024 * 1024; // note: 'buffer_size' times the env var 'OMP_NUM_THREADS' equals RAM allocated. for me this is 1.5GB * 12 = 18GB
 
     // how many simulations to run
-    const long int SIMS = 350*1000*1000; // ~68.28MB per million simulations, max SIMS is suggested to be less than half your RAM size.
+    const long long int SIMS = 400*1000*1000; // ~68.28MB per million simulations, fit to less than your RAM size
 
     // how many RK4 steps per second of simulation, more steps = better accuracy. 300 accumulates an avg of 0.000001 meters of error per second.
     const int STEPS = 300;
@@ -161,7 +161,6 @@ static inline void runSim(unsigned long long *rng_state,
     const double t = (double)nsteps / STEPS;                                    // [0.033..., 2] step 0.033...
     double s[4] = {theta1, omega1, theta2, omega2};
 
-    // pre-precompute
     PendulumConsts consts = {
         .m_total_g = M1_M2_G,
         .M2_l1 = M2 * l1,
@@ -195,7 +194,6 @@ static inline void runSim(unsigned long long *rng_state,
     const double x2_end = l2 * sin_s2 + x1_end;
     const double y2_end = -l2 * cos_s2 + y1_end;
 
-    // Output
     *out_sin_theta1 = sin_theta1;
     *out_cos_theta1 = cos_theta1;
     *out_sin_theta2 = sin_theta2;
@@ -211,7 +209,7 @@ static inline void runSim(unsigned long long *rng_state,
 int main(int argc, char** argv) {
     if (argc >= 2) {SEED = atoi(argv[1]);}
     char filename[128];
-    snprintf(filename, sizeof(filename), "%ld simulations at %.5f using %d.csv", SIMS, DT, SEED);
+    snprintf(filename, sizeof(filename), "%lld simulations at %d per second using %d seed.csv", SIMS, STEPS, SEED);
     
     FILE *fp = fopen(filename, "w");
     if (!fp) {
@@ -285,6 +283,21 @@ int main(int argc, char** argv) {
     end_time = (double)clock() / CLOCKS_PER_SEC;
 #endif
     fclose(fp);
-    printf("Simulated %ld double pendulums in %.3f seconds.\n", SIMS, end_time - start_time);
+    printf("Simulated %lld double pendulums in %.3f seconds.\n", SIMS, end_time - start_time);
+
+    FILE *f = fopen("config.json", "w");
+    if (f == NULL) {
+        printf("Error opening file!\n");
+        return 1;
+    }
+
+    fprintf(f, "{\n");
+    fprintf(f, "  \"SIMS\": %lld,\n", SIMS);
+    fprintf(f, "  \"STEPS\": %d,\n", STEPS);
+    fprintf(f, "  \"SEED\": %d\n", SEED);
+    fprintf(f, "}\n");
+
+    fclose(f);
+    
     return 0;
 }
