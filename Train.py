@@ -18,7 +18,7 @@ class Predictor(nn.Module):
     def __init__(self, input_dim=7, output_dim=2,
                  hidden_dims=[400]*8,
                  skip_connections=[(0,2),(0,3),(0,4),(0,5),(0,6),(0,7),(0,8)],
-                 lr=0.00115, clip=8.0, batch_size=3750, init_std_L=0.037, init_std_O=0.0046
+                 lr=0.0014, clip=8.0, batch_size=3750, init_std_L=0.037, init_std_O=0.0046
                  ):
         super().__init__()
         self.hidden_dims = hidden_dims
@@ -147,7 +147,7 @@ def train():
     agent = Predictor().to(device)
     #agent.load_state_dict(torch.load(MODEL, map_location=device)) TODO: allow easy chunked training
 
-    for epoch in range(2):
+    for epoch in range(10):
         epoch_loss = 0.0
         indices = np.random.permutation(dataset_size)
 
